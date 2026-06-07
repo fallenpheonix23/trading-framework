@@ -1,166 +1,164 @@
-# Trading Framework
+# ICT Trading Bot
 
-A modular algorithmic trading framework built in Python. Implements five quantitative strategies with a shared backtesting engine, walk-forward validation, and Kelly Criterion capital allocation. All data sourced from Yahoo Finance — no paid APIs required.
+A fully systematic, backtested trading bot implementing **ICT (Inner Circle Trader)** methodology. Detects institutional price-action structures in market data and generates entries/exits with strict risk management.
 
 ---
 
 ## What It Does
 
-The framework rotates capital across assets based on macroeconomic signals — yield curve shape, inflation expectations, credit market conditions, and dollar strength. It figures out where to put money (stocks, bonds, gold, credit, international equities) by reading the macro environment, not by predicting individual stock prices.
+The bot identifies five core ICT concepts and combines them into a rules-based trading system:
 
-Think of it like this: when the yield curve is steepening and credit spreads are tightening, the economy is usually expanding — so the strategy tilts toward equities. When inflation is rising and the dollar is strong, gold gets a larger allocation and international equities get trimmed. The signals update continuously and positions are rebalanced weekly.
+| Concept | Description |
+|---------|-------------|
+| **Fair Value Gap (FVG)** | 3-candle price imbalance where the market tends to return and fill |
+| **Order Block (OB)** | Last opposing candle before a strong institutional displacement move |
+| **Breaker Block** | Mitigated OB that flips polarity — former support becomes resistance |
+| **Market Structure Shift (MSS)** | Break of a swing high/low confirmed by a displacement candle |
+| **OTE** | Optimal Trade Entry — Fibonacci 61.8–78.6% retracement scoring |
 
----
+**Entry logic:** MSS confirms direction → price returns to an unmitigated FVG or OB → Kill Zone active (or Mon–Thu on daily) → ADX trending → daily bias aligned → enter.
 
-## Results
-
-Backtested on 9 years of genuine out-of-sample data (2016–2024), meaning the strategy was built and calibrated on data from 2010–2015 only, and then run blind on the remaining 9 years.
-
-| Metric | Result |
-|---|---|
-| Sharpe Ratio | **0.811** |
-| Sortino Ratio | **1.028** |
-| Annual Return | **+2.26%** |
-| Annual Volatility | 2.78% |
-| Max Drawdown | -7.67% |
-
-A Sharpe above 0.8 is considered strong for a systematic macro strategy. The Sortino above 1.0 means most of the portfolio's movement is upside — drawdowns are controlled. The strategy survived COVID (2020), the 2022 rate-hike bear market, and the 2023–2024 AI rally without blowing up.
-
----
-
-## Strategy
-
-**Active strategy: Macro Systematic**
-
-Trades five assets:
-- **SPY** — US equities
-- **TLT** — Long-duration US Treasury bonds
-- **GLD** — Gold
-- **HYG** — High-yield (junk) bonds
-- **EFA** — International developed market equities
-
-Driven by four signals:
-1. **Yield curve slope** — TLT/SHY ratio. Steepening = growth optimism = more equities
-2. **Inflation proxy** — TIP/IEF ratio. Rising inflation = more gold, fewer bonds
-3. **Credit spread** — HYG/LQD ratio. Tightening spreads = risk appetite = more equities and credit
-4. **Dollar strength** — UUP momentum. Strong dollar = less gold and international equities
-
-Risk controls:
-- If SPY falls below its 200-day moving average, equity allocation is dampened — the strategy reduces stock exposure during confirmed downtrends
-- Positions are only rebalanced weekly and only when a weight has shifted more than 2% — cuts unnecessary trading costs
-- Volatility targeting keeps annualised portfolio vol around 10%
-
----
-
-## The Other Strategies (Built, Then Retired)
-
-Four other strategies were built and tested but removed after out-of-sample evaluation showed they were net negative:
-
-| Strategy | What It Does | OOS Sharpe | Decision |
-|---|---|---|---|
-| Statistical Arbitrage | Pairs trading on cointegrated S&P 500 stocks | +0.42 | Removed (macro enough on its own) |
-| Trend Following | Long top momentum decile, short bottom | -0.34 | Removed |
-| Mean Reversion | Short-term reversal on 5-day losers/winners | -0.47 | Removed |
-| Market Making | Simulated bid-ask inventory model | -0.53 | Removed |
-
-Cutting the losers improved the combined portfolio Sharpe more than any amount of parameter tuning.
+**Exit logic:** ATR-based stop below/above zone edge, partial exit 50% at 1.5R (trail stop to breakeven), full exit at 2.0R.
 
 ---
 
 ## Project Structure
 
 ```
-trading_framework/
-├── main.py                    # Entry point — run this
-├── requirements.txt
-│
-├── data/
-│   └── pipeline.py            # Downloads S&P 500 + macro data from yfinance, caches to parquet
-│
-├── engine/
-│   ├── backtest.py            # Vectorized backtest: weights → P&L with transaction costs + slippage
-│   ├── walk_forward.py        # Train/test split enforcement (train 2010-2015, OOS 2016-2024)
-│   └── vol_targeting.py       # Scales positions to hit 10% annualised volatility target
-│
-├── strategies/
-│   ├── macro_systematic.py    # Active strategy — 5-asset macro rotation
-│   ├── stat_arb.py            # Pairs trading (disabled)
-│   ├── trend_following.py     # Cross-sectional momentum (disabled)
-│   ├── mean_reversion.py      # Short-term reversal (disabled)
-│   └── market_making.py       # Inventory model skeleton (disabled)
-│
-├── regime/
-│   └── hmm_classifier.py      # Hidden Markov Model — identifies trending vs choppy regimes
-│
-├── portfolio/
-│   └── kelly_allocator.py     # Half-Kelly capital sizing across strategies
-│
-├── tuning/
-│   └── grid_search.py         # Parameter grid search — evaluated on OOS data only
-│
-├── analytics/
-│   └── performance.py         # Sharpe, Sortino, max drawdown, Calmar, monthly returns
-│
-├── visualization/
-│   └── dashboard.py           # Equity curves, monthly heatmap, correlation matrix
-│
-└── output/                    # Generated charts and performance CSVs
+ict-bot/
+├── ict_data.py            # Data download + daily bias (50/200 EMA)
+├── ict_structures.py      # FVG, OB, Breaker, MSS, Kill Zone, ADX, OTE
+├── ict_backtest.py        # 1h single-instrument backtest engine
+├── ict_portfolio.py       # Daily multi-instrument portfolio engine
+├── ict_viz.py             # Annotated charts, equity curve, drawdown plots
+├── build_notebook.py      # Generates ICT_Bot.ipynb (2yr hourly)
+├── build_notebook_15y.py  # Generates ICT_Bot_15Y.ipynb (15yr daily)
+├── ICT_Bot.ipynb          # SPY 1h notebook — 2 years
+├── ICT_Bot_15Y.ipynb      # SPY+QQQ+GLD+TLT daily notebook — 15 years
+└── DEVLOG.md              # Full development log
+```
+
+---
+
+## Results
+
+### Hourly Backtest — SPY, 2 Years (v2)
+
+| Metric | Value |
+|--------|-------|
+| Total trades | 67 |
+| Win rate | 40.3% |
+| Avg R per trade | +0.39R |
+| Profit factor | 1.43× |
+| Sharpe (annual) | +0.46 |
+| Max drawdown | -16.4% |
+| Total P&L | **+$17,572 (+17.6%)** |
+| CAGR | 4.81% |
+| Beta (β) | 0.07 |
+| Alpha (α, Jensen) | -1.28%/yr |
+| Calmar (γ) | 0.29 |
+
+---
+
+### Daily Portfolio Backtest — SPY + QQQ + GLD + TLT, 15 Years (v3)
+
+| Metric | Value |
+|--------|-------|
+| Total trades | 121 |
+| Trades / year | ~8.1 |
+| Win rate | 52.1% |
+| Avg R per trade | +0.38R |
+| Profit factor | 1.52× |
+| Sharpe (annual) | 0.53 |
+| Sharpe (per-trade) | 0.75 |
+| Max drawdown | **-5.12%** |
+| Calmar (γ) | **1.22** |
+| Beta (β) | **0.008** (near-zero market exposure) |
+| Alpha (α, Jensen) | **+2.17% / year** |
+| R skewness | +0.19 (slight right tail) |
+| Total P&L | **+$148,024 (+148%)** |
+| **CAGR (compounded)** | **6.25% / year** |
+| SPY buy-and-hold CAGR | 13.65% / year |
+| Final equity (from $100k) | **$248,024** |
+
+Key characteristic: **near-zero beta (0.008)** — returns are almost entirely uncorrelated with the market. The strategy generates true alpha through selective ICT entries rather than riding market beta.
+
+---
+
+## Strategy Parameters
+
+```python
+# Risk
+INITIAL_CAPITAL  = 100_000
+RISK_PCT         = 0.01       # 1% equity per trade
+REWARD_R         = 2.0        # Full target
+PARTIAL_R        = 1.5        # Partial exit (50%) and trail to breakeven
+MAX_CONCURRENT   = 4          # Portfolio cap
+
+# Filters
+ADX_THRESHOLD       = 18.0    # Long entries
+ADX_SHORT_THRESHOLD = 25.0    # Short entries (stricter)
+MSS_EXPIRY_BARS     = 45      # Daily bars (~9 weeks)
+MAX_ZONE_AGE        = 30      # Bars before zone is stale
+
+# Stops
+ATR_STOP_BUFFER  = 1.0        # ATR units below zone edge
+MIN_STOP_PCT     = 0.005      # 0.5% minimum floor
+
+# Costs
+TRANSACTION_COST = 0.0005     # 5bps per side
+RF_ANNUAL        = 0.04       # Idle cash earns T-bill rate
 ```
 
 ---
 
 ## How to Run
 
-**Install dependencies:**
+**Prerequisites:**
 ```bash
-pip install -r requirements.txt
+pip install yfinance pandas numpy matplotlib jupyter
 ```
 
-**Run the backtest:**
+**Generate and open notebooks:**
 ```bash
-python main.py
+# 2-year hourly backtest (SPY)
+python build_notebook.py
+jupyter notebook ICT_Bot.ipynb
+
+# 15-year daily portfolio backtest
+python build_notebook_15y.py
+jupyter notebook ICT_Bot_15Y.ipynb
 ```
-
-First run downloads ~500MB of price data from Yahoo Finance and caches it. Subsequent runs use the cache and complete in under a minute.
-
-**Force re-download data:**
-```bash
-python main.py --refresh
-```
-
-**Run parameter grid search before backtesting:**
-```bash
-python main.py --tune
-```
-
-Outputs are saved to `./output/` — equity curve, monthly returns heatmap, correlation matrix, and performance tables.
 
 ---
 
-## Key Design Decisions
+## What We Improved (v1 → v3)
 
-**Walk-forward validation** — the strategy is calibrated on 2010–2015 data only. Everything reported is genuinely out-of-sample (2016–2024). In-sample Sharpe numbers are meaningless and not reported.
+The v1 strategy lost 88% of capital. Key root-cause fixes:
 
-**No paid data** — everything comes from `yfinance`. The S&P 500 constituent list is scraped from Wikipedia. Macro instruments (Treasury ETFs, credit ETFs, gold, dollar index) are all publicly traded and available.
+1. **ATR-based stops** — replaced a fatal fixed 0.1% buffer that was tighter than 1h noise (~$0.55 on a $550 stock vs $2–4 ATR)
+2. **50/200 EMA bias filter** — replaced 20/50 to filter regime vs micro-oscillations
+3. **OB displacement threshold 1.5× → 2.0× ATR** — requires strong conviction moves only
+4. **MSS swing 5 → 10 candles, body > 1.5× ATR** — fewer but higher-conviction breaks
+5. **Zone staleness filter** — discard FVGs/OBs older than MAX_ZONE_AGE bars
+6. **ADX filter** — no entries in ranging/choppy markets
+7. **Short filter: ADX > 25 + price < SMA200** — prevents counter-trend shorts in bull markets
+8. **Partial exit at 1.5R** — dramatically reduces variance, improves Calmar ratio
+9. **Idle capital T-bill return** — biggest CAGR lift; idle cash earns 4%/yr in money market
+10. **Multi-instrument (4 assets)** — increases signal frequency without increasing correlation
 
-**Transaction costs** — 10 bps per trade + 5 bps slippage baked into every backtest. Weekly rebalancing with a 2% drift threshold keeps turnover low.
-
-**Half-Kelly sizing** — Kelly Criterion gives the theoretically optimal bet size. Half-Kelly halves it, reducing variance at the cost of some expected return. Standard practice in systematic trading.
+See `DEVLOG.md` for the full development log including bugs, fixes, and learnings.
 
 ---
 
-## Requirements
+## Limitations
 
-```
-yfinance
-pandas
-numpy
-scipy
-statsmodels
-hmmlearn
-matplotlib
-seaborn
-requests
-tqdm
-pyarrow
-```
+- Low trade frequency (~8 trades/year per instrument on daily bars) makes statistical significance limited
+- yfinance data quality may differ from actual broker fills
+- No slippage model beyond flat 5bps transaction cost
+- Daily bars miss intraday kill zone timing signals
+- Live trading would require broker API integration
+
+---
+
+*Built using Python, pandas, numpy, yfinance, and matplotlib.*
