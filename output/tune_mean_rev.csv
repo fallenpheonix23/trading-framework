@@ -1,0 +1,5 @@
+reversal_window,long_short_pct,oos_sharpe
+5,0.1,-0.297
+5,0.2,-0.282
+10,0.1,-0.061
+10,0.2,0.053

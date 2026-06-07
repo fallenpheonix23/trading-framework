@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+.eggs/
+dist/
+build/
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Data cache — large parquet files, re-generated on first run
+cache/
+*.parquet
+
+# S&P 500 ticker cache (auto-refreshed from Wikipedia)
+sp500_tickers.txt
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Output charts (reproducible — regenerated each run)
+output/*.png
+
+# Keep tuning CSVs and OOS performance table
+!output/*.csv
